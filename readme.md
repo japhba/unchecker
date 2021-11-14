@@ -34,10 +34,6 @@
   </a>
 
   <h3 align="center">unchecker</h3>
-
-  <p align="center">
-    A benchmark is a collection of functions, each individual function in a given benchmark is called a task. This repository contains some example methods as well as easily extendable base methods to create custom benchmarks. 
-    <br />
   </p>
 </p>
 
@@ -47,7 +43,7 @@
 Download the script and open a terminal at the location where the script is stored. 
 ### Open the GUI for parameter adjustment
 ```
-python main.py input my_griddy_file.pdf output my_blank_file.pdf
+python main.py --input my_griddy_file.pdf --output my_blank_file.pdf
 ```
 
 ### Creating your own benchmark
@@ -55,23 +51,10 @@ A benchmark that integrates well with the rest of the package can easily be impl
 For a non-parametric benchmark, e.g. consisting of samples of a Gaussian process, inherit from ```base_benchmark.py```. 
 
 
-<!-- CONTRIBUTING -->
-## Contributing
-
-Contributions are what make the open source community such an amazing place to learn, inspire, and create. Any contributions you make are **greatly appreciated**.
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-
-
 <!-- LICENSE -->
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. 
 
 
 <!-- CONTACT -->
