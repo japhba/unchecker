@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import cv2
 import numpy as np
 from scipy import ndimage
@@ -34,7 +36,7 @@ gaussBG = 10.0
 gaussMain = 3.0
 
 dry_run = True
-input_fn = "script_qtcm_1s.pdf"
+input_fn = "LNSchuch_grid.pdf"
 use_settings = False
 
 
@@ -391,8 +393,8 @@ def run(dry_run):
 
         nthreads = 2
 
-        filename = os.path.abspath(input_fn)
-        pardir = os.path.abspath(__file__)
+        filename = Path(input_fn).absolute()
+        pardir = Path(__file__).parent
         # pardir = os.path.dirname(filename)
 
         tmpdir = tempfile.TemporaryDirectory(dir=pardir)
@@ -635,14 +637,14 @@ try:
 
     args = parser.parse_args()
 
-    input_fn = args.input
+    input_fn = args.input if args.input else input_fn
     output_fn = args.output
     downscale = args.downscale
     scaleFactor = int(downscale**(-1))
     gamma = args.gamma
     maxpeaks = args.maxpeaks
     # debug = args.dry_
-    dry_run = args.dry_run
+    dry_run = not args.no_dry_run
     use_settings = args.use_settings
     print(input_fn)
     run(dry_run)
