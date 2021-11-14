@@ -46,13 +46,8 @@
 Download the script and open a terminal at the location where the script is stored. 
 ### Open the GUI for parameter adjustment
 ```
-python main.py --input my_griddy_file.pdf --output my_blank_file.pdf
+python main.py --input my_griddy_file.pdf --output my_blank_file.pdf --no_dry_run False
 ```
-
-### Creating your own benchmark
-A benchmark that integrates well with the rest of the package can easily be implemented by inheriting from a base class. For parametric benchmarks, i.e. functions that can be constructed like y=f(x;p), with p a parameter, refer to ```base_parametric_benchmark.py``` and the annotations there. 
-For a non-parametric benchmark, e.g. consisting of samples of a Gaussian process, inherit from ```base_benchmark.py```. 
-
 
 <!-- LICENSE -->
 ## License
