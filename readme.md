@@ -40,6 +40,9 @@
 
 ![Example](example.png "Example")
 
+## Installation
+First, ensure that qpdf that is required by pikepdf is available on your system.
+
 
 <!-- USAGE EXAMPLES -->
 ## Usage

@@ -1,0 +1,5 @@
+./venv
+./conda
+tmp*
+unchecker.egg-info/
+**/__pycache__

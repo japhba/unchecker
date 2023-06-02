@@ -1,0 +1,9 @@
+numpy
+opencv-python
+scipy
+photutils
+Pillow
+pikepdf
+argparse
+matplotlib
+tqdm
