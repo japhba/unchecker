@@ -3,3 +3,8 @@
 tmp*
 unchecker.egg-info/
 **/__pycache__
+.DS_Store
+*.jpg
+*.png
+*.json
+.vscode/

@@ -28,8 +28,14 @@ maxpeaks = 100
 gaussBG = 10.0
 gaussMain = 3.0
 
+# setup logger to show time
+import logging
+logging.basicConfig(format='%(asctime)s %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
 class Pipeline():
-    def __init__(self, im, use_settings=True):
+    def __init__(self, im):
         self.o_im = im.astype(np.float32)
 
         # set default parameters
@@ -41,8 +47,7 @@ class Pipeline():
         self.gaussBG = gaussBG
         self.gaussMain = gaussMain
 
-        if use_settings:
-            self.loadSettings()
+        self.load_settings()
 
     @property
     def settings(self):
@@ -63,7 +68,7 @@ class Pipeline():
 
     def fft(self):
         im = self.im
-        print("Begin fft", time.process_time())
+        logger.info("Begin fft", time.process_time())
         fft = sp.fft.fft2(im)
 
         r, p = np.abs(fft), np.angle(fft)
@@ -103,7 +108,7 @@ class Pipeline():
 
         im = self.f_im
         # denoise images
-        print("Begin gaussfiltering", time.process_time())
+        logger.info("Begin gaussfiltering")
         # apply gauss filtering after log
         g_im = gaussian_filter(np.log(im), sigma=5 * downscale * gaussMain)
         g_im_bg = gaussian_filter(np.log(im), sigma=10 * downscale * gaussBG)
@@ -142,13 +147,13 @@ class Pipeline():
 
         # get the current, downsampled FFT spectrum
         g_im = self.g_im
-        print("Begin thrshd", time.process_time())
+        logger.info("Begin thrshd")
         thrshd = photutils.segmentation.detect_threshold(g_im, nsigma=nsigma_trshd, background=self.g_im_bg)
 
         # heavy function, therefore downsample image prior to peakfinding
-        print("Begin resizing maps", time.process_time())
+        logger.info("Begin resizing maps")
 
-        print("Begin peakfinder", time.process_time())
+        logger.info("Begin peakfinder")
         detected_peaks = photutils.detection.find_peaks(g_im, box_size=u2xx(0.04), threshold=thrshd, npeaks=maxpeaks)
 
         peaks = np.column_stack((detected_peaks["x_peak"][:], detected_peaks["y_peak"][:]))
@@ -201,7 +206,7 @@ class Pipeline():
 
         return im
 
-    def postProcess(self, gamma=None):
+    def post_process(self, gamma=None):
 
         if not gamma:
             gamma = self.gamma
@@ -235,41 +240,42 @@ class Pipeline():
         # stack
         def stack(im):
             # increase contrast with parabola, choose exponent appropriately
-            im = im ** 2
+            # im = im ** 2
 
             # increase blacks by normalizing
-            im = im / np.max(im)
+            # im = im / np.max(im)
 
-            # normalize
-            im = im / 255.0
+            # normalize to unit interval
+            im = im / 255.
 
-            # invert
-            im = 1 - im
+            # # invert
+            im = 1. - im
 
-            im = normalize(im)
+            # im = normalize(im)
 
-            # correct gamma
-            im = set_gamma(im, gamma)
+            # # correct gamma
+            # im = set_gamma(im, gamma)
 
-            # apply some clipping
-            im = clipShift(im, 0.08, n=1)
+            # # apply some clipping
+            # im = clipShift(im, 0.08, n=1)
 
-            # correct gamma
-            im = set_gamma(im, gamma)
+            # # correct gamma
+            # im = set_gamma(im, gamma)
 
-            # apply some clipping
-            im = clipShift(im, 0.05, n=1)
+            # # apply some clipping
+            # im = clipShift(im, 0.05, n=1)
 
-            # correct gamma
-            im = set_gamma(im, gamma)
+            # # correct gamma
+            # im = set_gamma(im, gamma)
 
-            # apply some clipping
-            im = clipShift(im, 0.35, n=1)
+            # # apply some clipping
+            # im = clipShift(im, 0.35, n=1)
 
-            # backtransform
-            im = 1 - im
+            # # backtransform
+            im = 1. - im
 
-            # im = im*255
+            # undo the normalization
+            im = im*255.
 
             return im
 
@@ -284,14 +290,16 @@ class Pipeline():
         self.gaussFilter()
         self.findPeaks()
         self.backtransform()
-        self.postProcess()
+        # self.postProcess()
 
-    def saveSettings(self):
+    def save_settings(self):
         settings = self.settings
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json'), 'w') as f:
             json.dump(settings, f)
 
-    def loadSettings(self):
+        logger.info("Settings saved!")
+
+    def load_settings(self):
         try:
             with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'settings.json'), 'r') as f:
                 settings = json.load(f)
@@ -301,5 +309,5 @@ class Pipeline():
                 setattr(self, k, v)
 
         except FileNotFoundError as e:
-            print("Settings from dry-run not found. Using default settings instead!")
+            logger.info("Settings from dry-run not found. Using default settings instead!")
             return
