@@ -22,11 +22,11 @@ from tqdm import tqdm
 
 # global default settings
 downscale = 0.3
-scaleFactor = 3
+scaleFactor = 1
 gamma = 2
 maxpeaks = 100
 gaussBG = 10.0
-gaussMain = 3.0
+gaussMain = .2
 
 # setup logger to show time
 import logging
@@ -46,12 +46,13 @@ class Pipeline():
 
         self.gaussBG = gaussBG
         self.gaussMain = gaussMain
+        self.notch_size = 1
 
         self.load_settings()
 
     @property
     def settings(self):
-        return {"downscale": self.downscale, "scaleFactor": self.scaleFactor, "maxpeaks": self.maxpeaks, "gamma": self.gamma, "gaussBG": self.gaussBG, "gaussMain": self.gaussMain}
+        return {"downscale": self.downscale, "scaleFactor": self.scaleFactor, "maxpeaks": self.maxpeaks, "gamma": self.gamma, "gaussBG": self.gaussBG, "gaussMain": self.gaussMain, "notch_size": self.notch_size}
 
     def rescale(self, downscale=None):
         img = self.o_im
@@ -121,13 +122,16 @@ class Pipeline():
         self.g_im = g_im
         self.g_im_bg = g_im_bg
 
-    def findPeaks(self, maxpeaks=None, nsigma_trshd=0.05):
+    def findPeaks(self, maxpeaks=None, notch_size=None, nsigma_trshd=0.05):
         
         if not maxpeaks:
             maxpeaks = self.maxpeaks
         else:
             maxpeaks = int(maxpeaks)
             self.maxpeaks = maxpeaks
+
+        if notch_size:
+            self.notch_size = notch_size
 
         scaleFactor = self.scaleFactor
         
@@ -173,12 +177,12 @@ class Pipeline():
             xx, yy = np.meshgrid(np.arange(im.shape[1]), np.arange(im.shape[0]))
             x = np.stack((xx, yy), axis=-1)
             gauss = multivariate_normal.pdf(x, position, sigma)
-            gauss = gauss / (np.max(gauss) + 0.0001)
+            gauss = gauss / (np.max(gauss))
 
             return gauss
 
         # TODO not
-        notch = np.sum([notchMap(self.f_im, peak, sigma=u2x(0.08, 0)) for peak in legit_peaks[:]], axis=0)
+        notch = np.sum([notchMap(self.f_im, peak, sigma=u2x(0.08*self.notch_size, 0)) for peak in legit_peaks[:]], axis=0)
         # clip close maxima
         notch = np.clip(notch, 0, 1)
         # invert
@@ -188,7 +192,7 @@ class Pipeline():
         return notch
 
     def backtransform(self):
-        filtered = self.notch * self.f_im
+        filtered = np.exp(self.notch * np.log(self.f_im))
 
         self.denotched_f = filtered
 
@@ -307,6 +311,8 @@ class Pipeline():
             self.settings.update(settings)
             for k, v in settings.items():
                 setattr(self, k, v)
+
+            logger.info(f"Settings {settings} loaded!")
 
         except FileNotFoundError as e:
             logger.info("Settings from dry-run not found. Using default settings instead!")

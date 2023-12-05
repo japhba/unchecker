@@ -1,3 +1,4 @@
+from functools import partial
 from pathlib import Path
 
 import cv2
@@ -108,7 +109,7 @@ def run_pipeline(tmpdir):
 
     logger.info(f"Read N={len(imgs)} images from {os.path.join(tmpdir, 'pre')}")
 
-    def pipeline(img):
+    def get_pipeline(img):
         img = np.array(img)
         p = Pipeline(img)
         p.rescale()
@@ -118,22 +119,26 @@ def run_pipeline(tmpdir):
         p.backtransform()
         p.post_process()
 
-        return p.result
+        return p
 
     for i, img_fn in tqdm(enumerate(imgs)):
         img = Image.open(os.path.join(tmpdir, "pre", img_fn))
         if img.mode == "RGB":
             channels = ["R", "G", "B"]
-            results = [pipeline(img.getchannel(c)) for c in channels]
+            pipelines = [get_pipeline(img.getchannel(c)) for c in channels]
+            pipeline = pipelines[0]
+            results = [p.result for p in pipelines]
             result = np.stack(results, axis=2)
         else:
-            result = pipeline(img)
+            p = get_pipeline(img)
+            result = p.result
 
         result = np.clip(np.array(result), 0, 255).astype(np.uint8)
         out_im = Image.fromarray(result)
         out_im.save(os.path.join(tmpdir, "post", f"{i}.png"))
 
     logger.info(f"Saved N={len(imgs)} images to {os.path.join(tmpdir, 'post')}")
+    return pipeline
 
 
 def split_list(alist, wanted_parts=1):
@@ -178,7 +183,6 @@ output_dir.mkdir(exist_ok=True)
 
 input_dir = Path(__file__).parents[1]
 input_fn = input_dir / input_fn_default
-
 output_fn = output_dir / f"result{input_fn.suffix.lower()}"
 
 
@@ -193,9 +197,6 @@ def main(
     gamma=1.0,
     dry_run=dry_run,
 ):
-    # Your existing logic goes here
-    print("Running with the following configuration:")
-    print(locals())
 
     pardir = Path(__file__).parent
     tmpdir_obj = tempfile.TemporaryDirectory(dir=pardir)
@@ -207,43 +208,44 @@ def main(
     else:
         imgs, n_pages = pdfToImgs(filename)
 
+    os.makedirs(os.path.join(tmpdir_obj.name, "pre"), exist_ok=True)
+    os.makedirs(os.path.join(tmpdir_obj.name, "post"), exist_ok=True)
+
+    if tmpdir_obj:
+        for i, img in enumerate(imgs):
+            Image.fromarray(img).save(
+                os.path.join(tmpdir_obj.name, "pre", f"{i}.png")
+            )
+
+    logger.info(
+        f"Saved N={len(imgs)} images to {os.path.join(tmpdir_obj.name, 'pre')}"
+    )
+
+    p = run_pipeline(tmpdir_obj.name)
+
+
     if not dry_run:
-        # TODO multiprocessing
-        import multiprocessing
-        from multiprocessing.dummy import Pool as ThreadPool
-
-        nthreads = 2
-
-        # pardir = os.path.dirname(filename)
-
-        os.makedirs(os.path.join(tmpdir_obj.name, "pre"), exist_ok=True)
-        os.makedirs(os.path.join(tmpdir_obj.name, "post"), exist_ok=True)
-
-        if tmpdir_obj:
-            for i, img in enumerate(imgs):
-                Image.fromarray(img).save(
-                    os.path.join(tmpdir_obj.name, "pre", f"{i}.png")
-                )
-
-        logger.info(
-            f"Saved N={len(imgs)} images to {os.path.join(tmpdir_obj.name, 'pre')}"
-        )
-
-        run_pipeline(tmpdir_obj.name)
         save(output_fn, tmpdir_obj.name)
-
         tmpdir_obj.cleanup()
 
     else:
-        p = Pipeline(imgs[0])
-
         import matplotlib.pyplot as plt
 
-        fig, ((ax1, ax2, ax3, ax3a), (ax4, ax5, ax5a, ax6)) = plt.subplots(
-            2, 4, figsize=(10, 5)
-        )
 
-        plt.subplots_adjust(wspace=0, hspace=0.8)
+        mosaic = """
+        aabchh
+        aadehh
+        aafghh
+        """
+        fig, axd = plt.subplot_mosaic(mosaic, layout="compressed")
+        ax1 = axd["a"]
+        ax2 = axd["b"]
+        ax3 = axd["c"]
+        ax3a = axd["d"]
+        ax4 = axd["e"]
+        ax5 = axd["f"]
+        ax5a = axd["g"]
+        ax6 = axd["h"]
 
         def draw_all():
             interpolation = "bilinear"
@@ -411,6 +413,26 @@ def main(
 
         maxpeaks_slider.on_changed(on_maxpeaks)
 
+        def on_notch(notch_size):
+            start = time.process_time()
+            p.findPeaks(notch_size=notch_size)
+            p.backtransform()
+            p.post_process()
+            end = time.process_time()
+            refreshETA(start, end)
+            draw_all()
+
+        ax_notch = divider.append_axes("bottom", size="5%", pad=0.1)
+        notchsize_slider = Slider(
+            ax=ax_notch,
+            label="notch_size",
+            valmin=.1,
+            valmax=10,
+            valinit=p.notch_size,
+        )
+
+        notchsize_slider.on_changed(on_notch)
+
         def on_gamma(gamma):
             p.post_process(gamma)
             draw_all()
@@ -435,8 +457,21 @@ def main(
         draw_all()
         # plt.tight_layout()
 
+        fig.set_layout_engine(None)
         plt.show()
 
 
 if __name__ == "__main__":
-    fire.Fire(main)
+    # fire.Fire(main)
+
+    in_dir = Path("/Users/jan/Library/CloudStorage/OneDrive-Personal/projects/citadels/characters")
+    out_dir = Path("/Users/jan/Library/CloudStorage/OneDrive-Personal/projects/citadels/characters_decheckered")
+    out_dir.mkdir(exist_ok=True)
+
+    i =  0
+    for file in in_dir.iterdir():
+        # if i > 0: break
+        if file.suffix.lower() in [".jpeg", ".jpg", ".png"]:
+            if not "Prediger" in file.name: continue
+            main(input_fn=file, output_fn=out_dir / file.name, dry_run=True)
+            i += 1
